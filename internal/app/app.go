@@ -80,6 +80,8 @@ func runCheck(
 		return scores[i].Score > scores[j].Score
 	})
 	log.Printf("score ranking: %s", formatScoreRanking(scores))
+
+	// The top-ranked interface is the preferred candidate for this round.
 	best := scores[0]
 
 	currentIface, err := route.CurrentDefaultInterface(ctx)
@@ -89,6 +91,9 @@ func runCheck(
 	}
 
 	current, currentTracked := findScore(scores, currentIface)
+
+	// Switching is a separate decision from scoring: even if one interface ranks
+	// first, we still require the decision logic to confirm the gain is meaningful.
 	decision := evaluator.DecideSwitch(best, current, currentTracked)
 	if !decision.ShouldSwitch {
 		if currentTracked {
