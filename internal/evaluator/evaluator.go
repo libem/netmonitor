@@ -88,7 +88,7 @@ func DecideSwitch(best, current InterfaceScore, currentTracked bool) Decision {
 	delta := best.Score - current.Score
 	if delta < MinSwitchScoreDelta {
 		return Decision{
-			Reason:     fmt.Sprintf("score delta %.2f is below switch threshold %.2f", delta, MinSwitchScoreDelta),
+			Reason:     fmt.Sprintf("score delta %.2f is below switch threshold %d", delta, MinSwitchScoreDelta),
 			ScoreDelta: delta,
 		}
 	}
