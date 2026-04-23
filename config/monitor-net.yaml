@@ -1,0 +1,14 @@
+ping_targets:
+  - "8.8.8.8"
+  - "www.baidu.com"
+ping_interval_sec: 10
+ping_timeout_sec: 10
+ping_count: 5
+
+check_interval: 10s # 检查间隔
+
+interfaces: # 要监视的网络接口, 例如
+  - "en0" # 4G接口
+  - "utun6" # 1.4G接口
+  # - "wwan0" # 4G接口
+  # - "lan0" # 1.4G接口
