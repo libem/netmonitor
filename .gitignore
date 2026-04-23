@@ -1,2 +1,3 @@
 .gocache/**/*
 cmd/**/__debug_*
+bin/*
