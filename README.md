@@ -489,3 +489,28 @@ make run
 - `interfaces` 中的网卡名称必须与目标主机实际网卡名一致
 - `ping_targets` 建议选择稳定、可代表业务连通性的目标地址
 - 当前评分权重和切换阈值为经验值，后续可根据现场网络特性进一步调优
+
+## 手动测试是否切换路由
+
+``` bash
+
+# 暂停服务
+systemctl stop net-monitor-cat.service 
+
+ip route show default
+
+# 删除 usb1 接口（4g）路由
+ip route del default via 192.168.42.1 dev usb1
+# 增加 usb1 接口（4g）路由，优先靠前
+ip route add default via 192.168.42.1 dev usb1 proto dhcp metric 10
+
+# ip route del default via 192.168.0.1 dev eth0 proto dhcp metric 50
+# ip route add default via 192.168.0.1 dev eth0 proto dhcp metric 500
+
+# 重启服务
+systemctl restart net-monitor-cat.service 
+
+# 过段时间查看路由表由是否将评分高的排在前面
+ip route show default
+
+```
