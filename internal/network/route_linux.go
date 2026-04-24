@@ -74,17 +74,31 @@ func queryDefaultRoutes(ctx context.Context) ([]defaultRoute, error) {
 }
 
 func replaceDefaultRouteMetric(ctx context.Context, route defaultRoute, metric int) error {
-	args := []string{"route", "replace", "default"}
-	if route.Gateway != "" {
-		args = append(args, "via", route.Gateway)
+	if route.Metric == metric {
+		return nil
 	}
-	args = append(args, "dev", route.Dev, "metric", fmt.Sprintf("%d", metric))
 
+	// Keep all original route attributes (for example `proto dhcp`) and only
+	// rewrite the metric, otherwise `ip route replace` may leave the original
+	// route behind and create a second default route with fewer attributes.
+	addArgs := append([]string{"route", "add", "default"}, route.attributesWithMetric(metric)...)
+	if err := runIPRouteCommand(ctx, addArgs); err != nil {
+		return fmt.Errorf("add updated default route for %s: %w", route.Dev, err)
+	}
+
+	delArgs := append([]string{"route", "del", "default"}, route.attributesWithMetric(route.Metric)...)
+	if err := runIPRouteCommand(ctx, delArgs); err != nil {
+		return fmt.Errorf("remove old default route for %s: %w", route.Dev, err)
+	}
+	return nil
+}
+
+func runIPRouteCommand(ctx context.Context, args []string) error {
 	cmd := exec.CommandContext(ctx, "ip", args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("replace default route for %s: %w: %s", route.Dev, err, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("ip %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
 }

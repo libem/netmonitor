@@ -19,8 +19,33 @@ default via 192.168.42.1 dev usb1 proto dhcp metric 200
 	if routes[0].Dev != "eth0" || routes[0].Gateway != "192.168.0.1" || routes[0].Metric != 100 {
 		t.Fatalf("routes[0] = %#v", routes[0])
 	}
+	if got, want := routes[0].Attributes, []string{"via", "192.168.0.1", "dev", "eth0", "proto", "dhcp", "metric", "100"}; len(got) != len(want) {
+		t.Fatalf("routes[0].Attributes = %#v, want %#v", got, want)
+	}
 	if routes[1].Dev != "usb1" || routes[1].Gateway != "192.168.42.1" || routes[1].Metric != 200 {
 		t.Fatalf("routes[1] = %#v", routes[1])
+	}
+}
+
+func TestDefaultRouteAttributesWithMetricPreservesOtherFields(t *testing.T) {
+	t.Parallel()
+
+	route := defaultRoute{
+		Dev:        "usb1",
+		Gateway:    "192.168.42.1",
+		Metric:     200,
+		Attributes: []string{"via", "192.168.42.1", "dev", "usb1", "proto", "dhcp", "metric", "200"},
+	}
+
+	got := route.attributesWithMetric(100)
+	want := []string{"via", "192.168.42.1", "dev", "usb1", "proto", "dhcp", "metric", "100"}
+	if len(got) != len(want) {
+		t.Fatalf("attributesWithMetric() = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attributesWithMetric()[%d] = %q, want %q; full=%#v", i, got[i], want[i], got)
+		}
 	}
 }
 

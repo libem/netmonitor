@@ -7,10 +7,11 @@ import (
 )
 
 type defaultRoute struct {
-	Gateway string
-	Dev     string
-	Metric  int
-	Raw     string
+	Gateway    string
+	Dev        string
+	Metric     int
+	Raw        string
+	Attributes []string
 }
 
 func parseDefaultRoutes(output string) ([]defaultRoute, error) {
@@ -26,7 +27,11 @@ func parseDefaultRoutes(output string) ([]defaultRoute, error) {
 			continue
 		}
 
-		route := defaultRoute{Metric: 0, Raw: line}
+		route := defaultRoute{
+			Metric:     0,
+			Raw:        line,
+			Attributes: append([]string(nil), fields[1:]...),
+		}
 		for i := 1; i < len(fields); i++ {
 			switch fields[i] {
 			case "via":
@@ -63,6 +68,24 @@ func parseDefaultRoutes(output string) ([]defaultRoute, error) {
 		return nil, fmt.Errorf("no default routes found")
 	}
 	return routes, nil
+}
+
+func (r defaultRoute) attributesWithMetric(metric int) []string {
+	attrs := make([]string, 0, len(r.Attributes)+2)
+	inserted := false
+	for i := 0; i < len(r.Attributes); i++ {
+		if r.Attributes[i] == "metric" {
+			attrs = append(attrs, "metric", strconv.Itoa(metric))
+			inserted = true
+			i++
+			continue
+		}
+		attrs = append(attrs, r.Attributes[i])
+	}
+	if !inserted {
+		attrs = append(attrs, "metric", strconv.Itoa(metric))
+	}
+	return attrs
 }
 
 func selectActiveDefaultRoute(routes []defaultRoute) (defaultRoute, error) {
