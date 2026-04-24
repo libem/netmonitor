@@ -24,7 +24,7 @@ build-windows-amd64:
 	GOOS=windows GOARCH=amd64 go build -o $(BIN_DIR)/net-monitor-windows ./cmd/monitor/main.go
 
 # 默认构建网络监测工具（ARM）
-build-arm64:
+build-linux-arm64:
 	mkdir -p $(BIN_DIR)
 	GOOS=linux GOARCH=arm64 go build -o $(BIN_DIR)/net-monitor-arm ./cmd/monitor/main.go
 
