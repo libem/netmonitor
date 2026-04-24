@@ -17,3 +17,7 @@ func (RouteSwitcher) CurrentDefaultInterface(context.Context) (string, error) {
 func (RouteSwitcher) SwitchDefaultInterface(context.Context, string) error {
 	return fmt.Errorf("route switching is not supported on %s", runtime.GOOS)
 }
+
+func (RouteSwitcher) VerifyDefaultInterface(context.Context, string) error {
+	return fmt.Errorf("route verification is not supported on %s", runtime.GOOS)
+}

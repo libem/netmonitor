@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"sort"
 	"strings"
@@ -32,25 +33,48 @@ func (RouteSwitcher) SwitchDefaultInterface(ctx context.Context, iface string) e
 		return err
 	}
 
-	_, plan, err := metricPlan(routes, iface)
+	primaryRoutes, duplicateRoutes := dedupeDefaultRoutes(routes)
+	for _, route := range duplicateRoutes {
+		if err := deleteDefaultRoute(ctx, route); err != nil {
+			return fmt.Errorf("cleanup duplicate default route for %s: %w", route.Dev, err)
+		}
+	}
+
+	_, plan, err := metricPlan(primaryRoutes, iface)
 	if err != nil {
 		return err
 	}
 
-	sort.Slice(routes, func(i, j int) bool {
-		if routes[i].Dev == iface {
+	sort.Slice(primaryRoutes, func(i, j int) bool {
+		if primaryRoutes[i].Dev == iface {
 			return true
 		}
-		if routes[j].Dev == iface {
+		if primaryRoutes[j].Dev == iface {
 			return false
 		}
-		return routes[i].Metric < routes[j].Metric
+		return primaryRoutes[i].Metric < primaryRoutes[j].Metric
 	})
 
-	for _, route := range routes {
+	for _, route := range primaryRoutes {
 		if err := replaceDefaultRouteMetric(ctx, route, plan[route.Dev]); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (RouteSwitcher) VerifyDefaultInterface(ctx context.Context, iface string) error {
+	routes, err := queryDefaultRoutes(ctx)
+	if err != nil {
+		return err
+	}
+
+	active, err := selectActiveDefaultRoute(routes)
+	if err != nil {
+		return err
+	}
+	if active.Dev != iface {
+		return fmt.Errorf("expected active default route on %s, got %s; routes=%s", iface, active.Dev, formatDefaultRoutes(routes))
 	}
 	return nil
 }
@@ -78,17 +102,22 @@ func replaceDefaultRouteMetric(ctx context.Context, route defaultRoute, metric i
 		return nil
 	}
 
-	// Keep all original route attributes (for example `proto dhcp`) and only
-	// rewrite the metric, otherwise `ip route replace` may leave the original
-	// route behind and create a second default route with fewer attributes.
-	addArgs := append([]string{"route", "add", "default"}, route.attributesWithMetric(metric)...)
-	if err := runIPRouteCommand(ctx, addArgs); err != nil {
-		return fmt.Errorf("add updated default route for %s: %w", route.Dev, err)
+	// After duplicate routes are cleaned up, replacing the remaining route in
+	// place is safer than add+del: it keeps all original attributes while only
+	// changing metric, and avoids deleting the freshly updated route by mistake.
+	args := append([]string{"route", "replace", "default"}, route.attributesWithMetric(metric)...)
+	log.Printf("update default route dev=%s old_metric=%d new_metric=%d cmd=%q", route.Dev, route.Metric, metric, "ip "+strings.Join(args, " "))
+	if err := runIPRouteCommand(ctx, args); err != nil {
+		return fmt.Errorf("replace default route for %s: %w", route.Dev, err)
 	}
+	return nil
+}
 
-	delArgs := append([]string{"route", "del", "default"}, route.attributesWithMetric(route.Metric)...)
-	if err := runIPRouteCommand(ctx, delArgs); err != nil {
-		return fmt.Errorf("remove old default route for %s: %w", route.Dev, err)
+func deleteDefaultRoute(ctx context.Context, route defaultRoute) error {
+	args := append([]string{"route", "del", "default"}, route.attributesWithMetric(route.Metric)...)
+	log.Printf("cleanup duplicate default route dev=%s metric=%d cmd=%q", route.Dev, route.Metric, "ip "+strings.Join(args, " "))
+	if err := runIPRouteCommand(ctx, args); err != nil {
+		return fmt.Errorf("delete default route %s metric %d: %w", route.Dev, route.Metric, err)
 	}
 	return nil
 }

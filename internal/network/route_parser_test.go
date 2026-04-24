@@ -92,3 +92,41 @@ func TestMetricPlanRejectsUnknownInterface(t *testing.T) {
 		t.Fatal("metricPlan() error = nil, want error")
 	}
 }
+
+func TestDedupeDefaultRoutes(t *testing.T) {
+	t.Parallel()
+
+	routes := []defaultRoute{
+		{Dev: "eth0", Gateway: "192.168.0.1", Metric: 300},
+		{Dev: "usb1", Gateway: "192.168.42.1", Metric: 100},
+		{Dev: "eth0", Gateway: "192.168.0.1", Metric: 100},
+		{Dev: "usb1", Gateway: "192.168.42.1", Metric: 200},
+	}
+
+	primary, duplicates := dedupeDefaultRoutes(routes)
+	if len(primary) != 2 {
+		t.Fatalf("len(primary) = %d, want 2", len(primary))
+	}
+	if primary[0].Dev != "eth0" || primary[0].Metric != 100 {
+		t.Fatalf("primary[0] = %#v, want eth0 metric 100", primary[0])
+	}
+	if primary[1].Dev != "usb1" || primary[1].Metric != 100 {
+		t.Fatalf("primary[1] = %#v, want usb1 metric 100", primary[1])
+	}
+	if len(duplicates) != 2 {
+		t.Fatalf("len(duplicates) = %d, want 2", len(duplicates))
+	}
+}
+
+func TestFormatDefaultRoutes(t *testing.T) {
+	t.Parallel()
+
+	got := formatDefaultRoutes([]defaultRoute{
+		{Dev: "eth0", Gateway: "192.168.0.1", Metric: 200},
+		{Dev: "usb1", Gateway: "192.168.42.1", Metric: 600},
+	})
+	want := "eth0(via=192.168.0.1,metric=200), usb1(via=192.168.42.1,metric=600)"
+	if got != want {
+		t.Fatalf("formatDefaultRoutes() = %q, want %q", got, want)
+	}
+}

@@ -112,6 +112,20 @@ func runCheck(
 		return
 	}
 
+	if err := route.VerifyDefaultInterface(ctx, best.Name); err != nil {
+		log.Printf("ALERT switch verification failed current=%s target=%s reason=%s err=%v", currentIface, best.Name, decision.Reason, err)
+		if rollbackErr := route.SwitchDefaultInterface(ctx, currentIface); rollbackErr != nil {
+			log.Printf("ALERT rollback failed target=%s rollback_to=%s err=%v", best.Name, currentIface, rollbackErr)
+			return
+		}
+		if rollbackVerifyErr := route.VerifyDefaultInterface(ctx, currentIface); rollbackVerifyErr != nil {
+			log.Printf("ALERT rollback verification failed rollback_to=%s err=%v", currentIface, rollbackVerifyErr)
+			return
+		}
+		log.Printf("rollback completed target=%s restored_current=%s", best.Name, currentIface)
+		return
+	}
+
 	log.Printf("switched default interface from %s to %s reason=%s", currentIface, best.Name, decision.Reason)
 }
 

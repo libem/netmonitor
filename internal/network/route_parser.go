@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -141,4 +142,48 @@ func metricPlan(routes []defaultRoute, preferredDev string) (int, map[string]int
 	}
 
 	return preferredMetric, plan, nil
+}
+
+func dedupeDefaultRoutes(routes []defaultRoute) (primary []defaultRoute, duplicates []defaultRoute) {
+	if len(routes) == 0 {
+		return nil, nil
+	}
+
+	byDev := make(map[string][]defaultRoute)
+	order := make([]string, 0, len(routes))
+	for _, route := range routes {
+		if _, ok := byDev[route.Dev]; !ok {
+			order = append(order, route.Dev)
+		}
+		byDev[route.Dev] = append(byDev[route.Dev], route)
+	}
+
+	for _, dev := range order {
+		group := byDev[dev]
+		sort.SliceStable(group, func(i, j int) bool {
+			return group[i].Metric < group[j].Metric
+		})
+		primary = append(primary, group[0])
+		if len(group) > 1 {
+			duplicates = append(duplicates, group[1:]...)
+		}
+	}
+
+	return primary, duplicates
+}
+
+func formatDefaultRoutes(routes []defaultRoute) string {
+	if len(routes) == 0 {
+		return "[]"
+	}
+
+	parts := make([]string, 0, len(routes))
+	for _, route := range routes {
+		gateway := route.Gateway
+		if gateway == "" {
+			gateway = "direct"
+		}
+		parts = append(parts, fmt.Sprintf("%s(via=%s,metric=%d)", route.Dev, gateway, route.Metric))
+	}
+	return strings.Join(parts, ", ")
 }
