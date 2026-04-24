@@ -1,3 +1,11 @@
+# 使用以下软链接方式快速创建 service 的引用与运行
+
+# ln -s  $(pwd)/net-monitor-cat.service  /etc/systemd/system/net-monitor-cat.service
+# 启动并设为开机自启
+# sudo systemctl daemon-reload
+# sudo systemctl enable net-monitor-cat.service
+# sudo systemctl restart net-monitor-cat.service
+
 [Unit]
 Description=Network Monitor Service
 # Documentation=file:/home/cat/uav/netmonitor/README.md
