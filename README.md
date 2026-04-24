@@ -217,6 +217,14 @@ Score = Reachability * 100 - min(AverageRTTMS, 1000) / 10 - PacketLoss * 0.7
 - 为什么程序没有切换
 - 切换动作是由哪条规则触发的
 
+日志会同时输出到标准输出和本地日志文件，默认策略如下：
+
+- 日志目录：`logs/`
+- 日志文件命名：`net-monitor-YYYYMMDD.log`
+- 按天切分：跨天后自动写入新的日期文件
+- 按大小切分：单个日志文件达到 `10MB` 后自动滚动为 `net-monitor-YYYYMMDD.1.log`、`net-monitor-YYYYMMDD.2.log`
+- 自动清理：定期删除 `5` 天前的历史日志文件
+
 ## 调参建议
 
 当前版本里最关键的调参点有两类：
