@@ -1,0 +1,27 @@
+[Unit]
+Description=Network Monitor Service
+# Documentation=file:/home/cat/uav/netmonitor/README.md
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/cat/uav/netmonitor
+ExecStart=/home/cat/uav/netmonitor/net-monitor-arm
+Restart=always
+RestartSec=5
+
+# Give the process a predictable place to create logs and read config from.
+Environment=HOME=/home/cat/uav/netmonitor
+Environment=NETMONITOR_CONFIG=/home/cat/uav/netmonitor/config/monitor-net.yaml
+
+# Route switching requires network administration privileges.
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

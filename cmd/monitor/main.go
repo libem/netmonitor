@@ -21,7 +21,12 @@ func main() {
 	}
 
 	exitCode := 0
-	if err := app.Run(ctx, "config/monitor-net.yaml"); err != nil {
+	configPath := os.Getenv("NETMONITOR_CONFIG")
+	if configPath == "" {
+		configPath = "config/monitor-net.yaml"
+	}
+
+	if err := app.Run(ctx, configPath); err != nil {
 		log.Printf("application exited with error: %v", err)
 		exitCode = 1
 	}

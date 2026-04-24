@@ -1,0 +1,27 @@
+[Unit]
+Description=Network Monitor Service
+Documentation=file:/opt/net-monitor/README.md
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/net-monitor
+ExecStart=/opt/net-monitor/net-monitor
+Restart=always
+RestartSec=5
+
+# Give the process a predictable place to create logs and read config from.
+Environment=HOME=/root
+Environment=NETMONITOR_CONFIG=/opt/net-monitor/config/monitor-net.yaml
+
+# Route switching requires network administration privileges.
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

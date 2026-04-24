@@ -388,6 +388,80 @@ const MinSwitchScoreDelta = 5
 - 如果后续发现不同目标地址的重要性不同，可以进一步扩展为“目标加权评分”
 - 如果后续发现单轮结果抖动明显，可以增加“多轮滑动平均”或“连续多轮胜出才切换”的机制
 
+
+## systemd 开机自启动配置
+
+如果目标 Linux 系统使用 `systemd`，可以使用仓库中的示例服务文件：`deploy/systemd/net-monitor.service`。
+
+该服务具备以下特点：
+
+- 使用 `After=network-online.target` 与 `Wants=network-online.target`，尽量等待网络就绪后再启动
+- 以后台常驻方式运行
+- 进程异常退出后自动拉起
+- 允许程序执行 `ping` 和路由切换所需的网络能力
+
+### 1. 准备程序目录
+
+建议在目标机上准备如下目录：
+
+```text
+/opt/net-monitor/
+├── net-monitor
+├── config/
+│   └── monitor-net.yaml
+└── README.md
+```
+
+其中：
+
+- `net-monitor` 为编译后的可执行文件
+- `config/monitor-net.yaml` 为运行配置文件
+
+例如在当前项目中可先构建 ARM64 版本：
+
+```bash
+make build-linux-arm64
+```
+
+然后将 `bin/net-monitor-arm` 重命名为 `net-monitor` 并拷贝到目标目录。
+
+### 2. 安装 service 文件
+
+将服务文件复制到系统目录：
+
+```bash
+sudo cp deploy/systemd/net-monitor.service /etc/systemd/system/net-monitor.service
+```
+
+如果你的安装目录不是 `/opt/net-monitor`，请同步修改 service 文件中的：
+
+- `WorkingDirectory`
+- `ExecStart`
+- `Environment=NETMONITOR_CONFIG=...`
+- `Documentation`
+
+### 3. 重新加载并设置开机启动
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable net-monitor.service
+sudo systemctl start net-monitor.service
+```
+
+### 4. 查看运行状态
+
+```bash
+sudo systemctl status net-monitor.service
+sudo journalctl -u net-monitor.service -f
+```
+
+### 5. 注意事项
+
+- 当前 service 示例默认使用 `root` 运行，这是因为路由切换通常需要足够权限
+- 如果你已经通过其他方式授予程序 `CAP_NET_ADMIN`、`CAP_NET_RAW`，也可以再按现场需要调整运行用户
+- 程序本身还会在工作目录下生成 `logs/` 日志文件，请确认 service 的工作目录可写
+- `network-online.target` 能提升“网络就绪后启动”的概率，但并不保证业务网络一定可达；真正链路质量仍由程序自身持续探测判断
+
 ## 构建与测试
 
 构建：
