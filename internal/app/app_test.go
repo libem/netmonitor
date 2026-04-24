@@ -40,3 +40,23 @@ func TestFormatScoreRanking(t *testing.T) {
 		t.Fatalf("formatScoreRanking() = %q, want %q", ranking, want)
 	}
 }
+
+func TestDetectInterfaceChanges(t *testing.T) {
+	t.Parallel()
+
+	added, removed := detectInterfaceChanges([]string{"eth0"}, []string{"eth0", "usb1"})
+	if len(added) != 1 || added[0] != "usb1" {
+		t.Fatalf("added = %#v, want [usb1]", added)
+	}
+	if len(removed) != 0 {
+		t.Fatalf("removed = %#v, want []", removed)
+	}
+
+	added, removed = detectInterfaceChanges([]string{"eth0", "usb1"}, []string{"eth0"})
+	if len(added) != 0 {
+		t.Fatalf("added = %#v, want []", added)
+	}
+	if len(removed) != 1 || removed[0] != "usb1" {
+		t.Fatalf("removed = %#v, want [usb1]", removed)
+	}
+}

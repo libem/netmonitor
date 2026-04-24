@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -22,12 +21,7 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	validInterfaces := filterInterfaces(cfg.Interfaces)
-	if len(validInterfaces) == 0 {
-		return errors.New("no valid network interfaces found on current machine")
-	}
-
-	log.Printf("loaded %d interfaces and %d ping targets", len(validInterfaces), len(cfg.PingTargets))
+	log.Printf("loaded %d configured interfaces and %d ping targets", len(cfg.Interfaces), len(cfg.PingTargets))
 
 	pinger := monitor.Pinger{
 		Timeout: time.Duration(cfg.PingTimeoutSec) * time.Second,
@@ -38,8 +32,17 @@ func Run(ctx context.Context, configPath string) error {
 	ticker := time.NewTicker(cfg.CheckInterval)
 	defer ticker.Stop()
 
+	var previousActive []string
 	for {
-		runCheck(ctx, validInterfaces, cfg.PingTargets, pinger, eval, route)
+		activeInterfaces := filterInterfaces(cfg.Interfaces)
+		logInterfaceChanges(previousActive, activeInterfaces)
+		previousActive = append(previousActive[:0], activeInterfaces...)
+
+		if len(activeInterfaces) == 0 {
+			log.Print("no active configured interfaces detected, skip this round and wait for next check")
+		} else {
+			runCheck(ctx, activeInterfaces, cfg.PingTargets, pinger, eval, route)
+		}
 
 		select {
 		case <-ctx.Done():
@@ -122,6 +125,41 @@ func filterInterfaces(interfaces []string) []string {
 		result = append(result, iface)
 	}
 	return result
+}
+
+func logInterfaceChanges(previous, current []string) {
+	added, removed := detectInterfaceChanges(previous, current)
+	if len(previous) == 0 && len(current) > 0 {
+		log.Printf("active interfaces detected: %s", strings.Join(current, ", "))
+		return
+	}
+
+	for _, iface := range added {
+		log.Printf("interface became available: %s", iface)
+	}
+	for _, iface := range removed {
+		log.Printf("interface became unavailable: %s", iface)
+	}
+}
+
+func detectInterfaceChanges(previous, current []string) (added, removed []string) {
+	prevSet := make(map[string]struct{}, len(previous))
+	currSet := make(map[string]struct{}, len(current))
+	for _, iface := range previous {
+		prevSet[iface] = struct{}{}
+	}
+	for _, iface := range current {
+		currSet[iface] = struct{}{}
+		if _, ok := prevSet[iface]; !ok {
+			added = append(added, iface)
+		}
+	}
+	for _, iface := range previous {
+		if _, ok := currSet[iface]; !ok {
+			removed = append(removed, iface)
+		}
+	}
+	return added, removed
 }
 
 func findScore(scores []evaluator.InterfaceScore, iface string) (evaluator.InterfaceScore, bool) {
